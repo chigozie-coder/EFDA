@@ -1,10 +1,10 @@
 # data_preparation.py
 
 import os
-import tiktoken
-from datasets import load_dataset
 import torch
+from datasets import load_dataset
 from torch.utils.data import Dataset, DataLoader
+from transformers import GPT2Tokenizer
 import pickle
 
 class TextDataset(Dataset):
@@ -19,10 +19,14 @@ class TextDataset(Dataset):
         return {'input_ids': torch.tensor(self.tokenized_texts[idx], dtype=torch.long)}
 
 def tokenize_texts(texts, tokenizer, max_length=20):
-    tokenized_texts = []
-    for text in texts:
-        tokens = tokenizer.encode(text, max_length=max_length, truncation=True, padding="max_length")
-        tokenized_texts.append(tokens)
+    # Tokenize the texts and return a list of tokenized sequences
+    tokenized_texts = tokenizer(
+        texts,
+        max_length=max_length,
+        truncation=True,
+        padding="max_length",
+        return_tensors="pt"
+    )['input_ids'].tolist()
     return tokenized_texts
 
 def prepare_data(cache_file="cached_tokenized_data.pkl"):
@@ -36,9 +40,9 @@ def prepare_data(cache_file="cached_tokenized_data.pkl"):
         texts = dataset['text']
 
         # Initialize the tokenizer
-        tokenizer = tiktoken.get_encoding("gpt2")
-        vocab_size = tokenizer.n_vocab
-        
+        tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+        vocab_size = len(tokenizer)
+
         # Tokenize the dataset
         tokenized_texts = tokenize_texts(texts, tokenizer, max_length=20)
         
@@ -54,3 +58,8 @@ def get_dataloader(batch_size=32, shuffle=True):
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
 
+if __name__ == "__main__":
+    dataloader = get_dataloader()
+    for batch in dataloader:
+        print(batch)
+        break
