@@ -34,6 +34,12 @@ class LightningTrainer(pl.LightningModule):
         loss = self.model.compute_loss(outputs, tgt_input)
         self.log('val_loss', loss)
 
+    def train_dataloader(self):
+      return self.train_data
+
+    def val_dataloader(self):
+      return self.val_data
+
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         scheduler = OneCycleLR(optimizer, max_lr=self.learning_rate, steps_per_epoch=len(self.train_dataloader()), epochs=self.trainer.max_epochs)
@@ -52,7 +58,9 @@ def train_model():
     model = StandardAutoregressiveModel(num_tokens, d_model, nhead, num_decoder_layers, dim_feedforward)
 
     trainer_module = LightningTrainer(model)
-    
+    trainer_module.train_data = train_data
+    trainer_module.val_data = val_data
+
     # Use bfloat16 precision, accumulate gradients over 2 batches, and stop early if no improvement
     trainer = pl.Trainer(
         max_epochs=3, 
@@ -70,4 +78,5 @@ def train_model():
             )
         ]  # Model checkpointing
     )
-    trainer.fit(trainer_module, train_dataloaders={'train': train_data, 'val': val_data})  # Pass both train and val data
+    trainer.fit(trainer_module)  # Pass both train and val data
+    torch.save(model.state_dict(), "model.pt")
